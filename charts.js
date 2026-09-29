@@ -324,11 +324,17 @@ export const CycleChart = (() => {
             const isUp = slIdx <= shIdx;
 
             // ── Строим уровни ──
+            // Ретрейсы (r ≤ 1) — внутри диапазона свинга.
+            // Расширения (r > 1: 1.272 / 1.618) — ПРОДОЛЖЕНИЕ движения за экстремумом,
+            // т.е. в аптренде ВЫШЕ Swing High, в даунтренде НИЖЕ Swing Low.
+            // Старая формула (sh - range*r) уводила расширения ниже Swing Low — это ошибка.
             const levels = {};
             FIB_RATIOS.forEach(r => {
-                levels[r] = isUp
-                    ? shVal - range * r   // ретрейс вниз от максимума
-                    : slVal + range * r;  // ретрейс вверх от минимума
+                if (r <= 1) {
+                    levels[r] = isUp ? shVal - range * r : slVal + range * r;
+                } else {
+                    levels[r] = isUp ? shVal + range * (r - 1) : slVal - range * (r - 1);
+                }
             });
 
             // ── Рисуем линии и подписи ──
