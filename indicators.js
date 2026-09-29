@@ -392,7 +392,9 @@ export class FibonacciEngine {
         0.5: '#FFD700',
         0.618: '#51CF66',
         0.786: '#339AF0',
-        1: '#888888'
+        1: '#888888',
+        1.272: '#CC77FF',
+        1.618: '#FF44AA'
     };
 
     // Detect the absolute swing high and low in a candle array
@@ -458,16 +460,27 @@ export class FibonacciEngine {
         // Determine trend direction from swing positions
         const isUptrend = swingLowIdx <= swingHighIdx; // low came first → uptrend
         const levels = {};
+        // Ретрейсы: уровни внутри свинга (0% на старте движения, 100% на экстремуме).
+        // В аптренде отсчёт ВНИЗ от Swing High (0%=SH), в даунтренде — ВВЕРХ от Swing Low (0%=SL).
+        // Старая схема инвертировала якоря (0% оказывался на экстремуме) — исправлено.
         this.RATIOS.forEach(r => {
-            // Retracement from high in uptrend, from low in downtrend
             levels[r] = isUptrend
-                ? swingHigh - range * r   // retracing down from high
-                : swingLow + range * r;  // retracing up from low
+                ? swingLow + range * r    // 0% = SL (старт импульса), 100% = SH
+                : swingHigh - range * r;  // 0% = SH (старт импульса), 100% = SL
+        });
+
+        // Расширения (продолжения волны за экстремумом): 127.2% и 161.8%.
+        // Без них «волны» обрывались на середине графика — продолжения импульса не рисовались.
+        const EXTENSIONS = [1.272, 1.618];
+        EXTENSIONS.forEach(r => {
+            levels[r] = isUptrend
+                ? swingHigh + range * (r - 1)   // выше Swing High
+                : swingLow - range * (r - 1);   // ниже Swing Low
         });
 
         return {
             tf, swingHigh, swingLow, swingHighIdx, swingLowIdx,
-            isUptrend, range, levels
+            isUptrend, range, levels, extensions: EXTENSIONS
         };
     }
 
@@ -507,12 +520,15 @@ export class FibonacciEngine {
         return mtf;
     }
 
+    // Все коэффициенты с ценой: ретрейсы + расширения
+    static ALL_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618];
+
     // Find confluence zones: levels within `threshold` % of each other
     static findConfluence(mtfData, threshold = 0.008) {
         const allLevels = []; // { price, tf, ratio }
         Object.values(mtfData).forEach(d => {
             if (!d) return;
-            FibonacciEngine.RATIOS.forEach(r => {
+            FibonacciEngine.ALL_RATIOS.forEach(r => {
                 if (r === 0 || r === 1) return; // skip anchors
                 allLevels.push({ price: d.levels[r], tf: d.tf, ratio: r });
             });

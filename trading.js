@@ -221,7 +221,9 @@ TRADE: Entry: [Price], TP: [Price], SL: [Price]
   - 38.2%: $${Math.round(fl[0.382])}
   - 50.0%: $${Math.round(fl[0.5])}
   - 61.8%: $${Math.round(fl[0.618])}
-  - 78.6%: $${Math.round(fl[0.786])}`;
+  - 78.6%: $${Math.round(fl[0.786])}
+  - Ext 127.2%: $${Math.round(fl[1.272])}
+  - Ext 161.8%: $${Math.round(fl[1.618])}`;
                     }
 
                     let chartContext = "Price dynamics: no data";

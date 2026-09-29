@@ -704,13 +704,27 @@ export class CandleChart {
         let minP = Math.min(...allLows);
         let maxP = Math.max(...allHighs);
 
+        // ── Пред-скан Fib расширений: если 127.2/161.8 выходят за диапазон свинга —
+        // растягиваем окно, чтобы продолжение волны было видно целиком, а не обрезалось
+        {
+            const preFib = appData.fibData && appData.fibData[currentTF];
+            if (preFib && preFib.levels) {
+                [1.272, 1.618].forEach(r => {
+                    const p = preFib.levels[r];
+                    if (p != null && isFinite(p)) {
+                        if (p > maxP) maxP = p;
+                        if (p < minP) minP = p;
+                    }
+                });
+            }
+        }
+
         const rawRange = maxP - minP || 1;
         // Добавляем пространство снизу (20%), чтобы было видно ближайшие линии Фибоначчи и индикаторы
         minP -= rawRange * 0.20;
         maxP += rawRange * 0.05;
 
-        const range = maxP - minP || 1;
-        const priceToY = p => PAD.top + chartH - ((p - minP) / range) * chartH;
+        const priceToY = p => PAD.top + chartH - ((p - minP) / (maxP - minP || 1)) * chartH;
 
         // Ось Y (справа): Только Максимум и Минимум
         const actualMaxPrice = Math.max(...allHighs);
@@ -760,13 +774,18 @@ export class CandleChart {
                 0.382: 'Зеркальный уровень',
                 0.5: 'Экватор',
                 0.618: 'Золотой карман',
-                0.786: 'Глубокая коррекция'
+                0.786: 'Глубокая коррекция',
+                1.272: 'Расширение 127',
+                1.618: 'Золотое расширение'
             };
 
-            FibonacciEngine.RATIOS.forEach(r => {
+            // Ретрейсы + расширения (продолжения волны за экстремумом)
+            FibonacciEngine.ALL_RATIOS.forEach(r => {
                 if (r === 0 || r === 1) return; // skip anchors to reduce clutter
                 const price = fibData.levels[r];
+                if (price == null || !isFinite(price)) return;
                 const y = priceToY(price);
+                // Все линии (включая расширения) уже учтены в масштабе выше — просто клипсим
                 if (y < PAD.top || y > PAD.top + chartH) return;
 
                 // Check if this level is in a confluence zone
