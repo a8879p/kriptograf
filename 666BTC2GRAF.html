@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Analyzer PRO</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>₿</text></svg>">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header"
+            style="position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 40px;">
+            <div style="display: flex; gap: 10px; z-index: 2;">
+                <button id="btnToggleElliott"
+                    style="background:rgba(0, 255, 200, 0.2); border:1px solid #00FFC8; color:#00FFC8; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; transition:0.2s;">🌊
+                    ВОЛНЫ</button>
+                <button id="btnToggleVanga"
+                    style="background:rgba(255, 0, 110, 0.2); border:1px solid #FF006E; color:#FF006E; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; transition:0.2s;">🔮
+                    ВАНГА</button>
+            </div>
+            <div class="timeframes"
+                style="position: absolute; left: 50%; transform: translateX(-50%); margin-bottom: 0; white-space: nowrap; z-index: 1;">
+                <span class="timeframes-label" style="margin-right: 5px;">ТАЙМФРЕЙМ:</span>
+                <button class="timeframe-btn" data-tf="15m">15 Минут</button>
+                <button class="timeframe-btn" data-tf="1h">1 Час</button>
+                <button class="timeframe-btn active" data-tf="4h">4 Часа</button>
+                <button class="timeframe-btn" data-tf="1d">1 День</button>
+                <button class="timeframe-btn" data-tf="1w">1 Неделя</button>
+                <span
+                    style="margin-left: 15px; font-family:'Courier New',monospace; font-size:18px; font-weight:900; letter-spacing:1px;">
+                    <span id="chartPriceVal" style="color:#FFD700;">---</span>
+                    <span id="chartTrendArrow" style="font-size:14px; margin-left:4px;">▶</span>
+                </span>
+            </div>
+            <div style="z-index: 2; display: flex; align-items: center; gap: 10px;">
+                <div id="sessionIndicator"
+                    style="font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); white-space: nowrap;">
+                    СЕССИЯ...
+                </div>
+                <button id="btnRefresh" class="btn-primary" title="Обновить"
+                    style="padding: 6px 12px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 140px; white-space: nowrap;">🔄</button>
+            </div>
+        </div>
+
+        <div id="alertBox" class="alert info"></div>
+
+
+        <!-- ФЛОУТИНГ МЕНЮ ТОРГОВЛИ НА ГРАФИКЕ -->
+        <div id="chartTradeMenu"
+            style="display:none; position:fixed; z-index:1000; background:rgba(10,14,39,0.95); border:1px solid #00FFC8; border-radius:8px; padding:10px; box-shadow:0 0 15px rgba(0,255,200,0.2); backdrop-filter: blur(4px);">
+            <div
+                style="color:#FFF; font-size:12px; margin-bottom:8px; text-align:center; font-family:'Courier New', monospace;">
+                Вход: <b id="chartTradePriceValue" style="color:#00FFC8;">$0.00</b></div>
+            <div style="display:flex; gap:8px;">
+                <button onclick="executeChartTrade('LONG')"
+                    style="background:#00FF88; color:#000; border:none; padding:6px 12px; border-radius:4px; font-weight:900; cursor:pointer; flex:1; transition:0.2s;"
+                    onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">▲
+                    LONG</button>
+                <button onclick="executeChartTrade('SHORT')"
+                    style="background:#FF006E; color:#FFF; border:none; padding:6px 12px; border-radius:4px; font-weight:900; cursor:pointer; flex:1; transition:0.2s;"
+                    onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">▼
+                    SHORT</button>
+            </div>
+            <div style="text-align:center; margin-top:8px;">
+                <button onclick="closeChartTradeMenu()"
+                    style="background:transparent; color:#888; border:1px solid #888; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer;">Отмена</button>
+            </div>
+        </div>
+
+
+
+        <div class="main-layout">
+
+            <div class="center-content">
+                <div class="section">
+
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <div class="chart-wrapper">
+                            <div class="chart-canvas-container" style="position: relative;">
+                                <div id="chartLoading" class="chart-loading">⏳ Загрузка данных...</div>
+
+                                <!-- Chart Lines Legend / Descriptions -->
+                                <div
+                                    style="position:absolute; top:15px; left:15px; display:flex; flex-direction:column; gap:8px; z-index:10; pointer-events:auto;">
+                                    <div style="background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.5); color:#FFD700; padding:4px 8px; border-radius:4px; font-size:10px; cursor:help; width:max-content; backdrop-filter:blur(2px); font-family:'Courier New', monospace; box-shadow:0 0 10px rgba(255,215,0,0.1);"
+                                        title="EMA 200 (Экспоненциальная скользящая средняя за 200 периодов).&#10;Выступает глобальным индикатором тренда и динамической поддержкой/сопротивлением.">
+                                        <span
+                                            style="display:inline-block; width:12px; height:2px; background:#FFD700; margin-right:6px; vertical-align:middle;"></span>EMA
+                                        200
+                                    </div>
+                                    <div style="background:rgba(153,50,204,0.1); border:1px dashed rgba(153,50,204,0.5); color:#E066FF; padding:4px 8px; border-radius:4px; font-size:10px; cursor:help; width:max-content; backdrop-filter:blur(2px); font-family:'Courier New', monospace; box-shadow:0 0 10px rgba(153,50,204,0.1);"
+                                        title="Daily VWAP (Внутридневная средневзвешенная по объему цена).&#10;Она показывает «справедливую цену» актива за текущий день с учетом проторгованных объемов.&#10;Крупные игроки часто ориентируются на нее при наборе позиций.">
+                                        <span
+                                            style="display:inline-block; width:12px; border-top:2px dashed #9932CC; margin-right:6px; vertical-align:middle;"></span>Daily
+                                        VWAP
+                                    </div>
+                                </div>
+
+                                <canvas id="candleChartCanvas" style="cursor: crosshair;"></canvas>
+                                <div id="candleTooltip"
+                                    style="display:none; position:absolute; background:rgba(10,14,39,0.95); border:1px solid #00FFC8; border-radius:6px; padding:8px 12px; font-family:'Courier New',monospace; font-size:11px; color:#fff; pointer-events:none; z-index:20; white-space:nowrap; line-height:1.7;">
+                                </div>
+
+
+
+                                <div id="crosshairH"
+                                    style="display:none; position:absolute; left:0; right:0; height:1px; border-top:1px dashed rgba(255,255,255,0.4); pointer-events:none; z-index:10;">
+                                </div>
+                                <div id="crosshairV"
+                                    style="display:none; position:absolute; top:0; bottom:0; width:1px; border-left:1px dashed rgba(255,255,255,0.4); pointer-events:none; z-index:10;">
+                                </div>
+
+
+                            </div>
+                        </div>
+
+                        <div class="adx-vertical-container">
+                            <div class="adx-scale-v">
+                                <span style="color: #00FF88;">UP<br>(+100)</span>
+                                <span style="color: #FFD700;">FLAT<br>(0)</span>
+                                <span style="color: #FF006E;">DOWN<br>(-100)</span>
+                            </div>
+                            <div class="adx-track-v">
+                                <div class="adx-gradient-v"></div>
+                                <!-- Markers for -25 and +25 thresholds -->
+                                <div class="adx-zone-marker-v" style="bottom: 37.5%;"></div>
+                                <div class="adx-zone-marker-v" style="bottom: 62.5%;"></div>
+
+                                <!-- Moving Pointer -->
+                                <div class="adx-pointer-v" id="adxPointer">
+                                    <div class="adx-pointer-value-v" id="adxPointerValue">ADX --</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="section">
+
+                    <!-- Probability Bar -->
+                    <div style="margin-bottom: 12px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span id="chipLong"
+                                style="color:#00FF88; font-weight:bold; font-size:13px; padding:3px 8px; border:1px solid rgba(0,255,136,0.2); border-radius:4px;">LONG
+                                <span id="probLongVal">50%</span></span>
+                            <span id="chipShort"
+                                style="color:#FF006E; font-weight:bold; font-size:13px; padding:3px 8px; border:1px solid rgba(255,0,110,0.2); border-radius:4px;">SHORT
+                                <span id="probShortVal">50%</span></span>
+                        </div>
+                        <div
+                            style="display:flex; height:6px; border-radius:3px; overflow:hidden; background:rgba(255,255,255,0.05);">
+                            <div id="probLongFill"
+                                style="width:50%; background:linear-gradient(90deg,#00FF88,#00D4A0); transition:width 0.5s;">
+                            </div>
+                            <div id="probShortFill"
+                                style="width:50%; background:linear-gradient(90deg,#FF006E,#FF4081); transition:width 0.5s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fibo Weight Slider -->
+                    <div style="margin-bottom: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 10px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="font-size:11px; color:#aaa; font-weight:bold;">Участие Фибоначчи в прогнозе</span>
+                            <span id="fiboWeightVal" style="font-size:11px; color:#00D9FF; font-weight:bold;">0%</span>
+                        </div>
+                        <input type="range" id="fiboWeightSlider" min="0" max="100" value="0" style="width:100%; cursor:pointer;"
+                               oninput="document.getElementById('fiboWeightVal').innerText = this.value + '%'; if(window.fetchCryptoData) window.fetchCryptoData()">
+                    </div>
+
+                    <div
+                                style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,255,200,0.05); padding: 10px; border-radius: 6px; border: 1px solid rgba(0,255,200,0.1); margin-bottom: 15px;">
+                                <div>
+                                    <div style="color: #00FF88; font-size: 13px; font-weight: 600;">🤖 AI AUTO-BOT (15m
+                                        / 4H)</div>
+                                    <div style="color: #666; font-size: 11px;">Торгует по Phase 5</div>
+                                </div>
+                                <label style="position: relative; display: inline-block; width: 34px; height: 20px;">
+                                    <input type="checkbox" id="ptAutoBotToggle" onchange="PaperTrader.toggleBot()"
+                                        style="opacity: 0; width: 0; height: 0;">
+                                    <span
+                                        style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 20px;"
+                                        id="ptAutoBotSlider">
+                                        <span
+                                            style="position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"
+                                            id="ptAutoBotKnob"></span>
+                                    </span>
+                                </label>
+                            </div>
+
+                    <!-- Paper Trading Module -->
+                    <div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                            <h3
+                                style="margin: 0; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing:1px;">
+                                🎮 Paper Trading</h3>
+                            <div style="display:flex; gap:10px;">
+                                <button onclick="PaperTrader.toggleHistory()"
+                                    style="background:transparent; border:none; color:#00FFC8; cursor:pointer; font-size:10px; text-decoration:underline; padding:0; margin:0;">History</button>
+                                <button onclick="PaperTrader.showStats()"
+                                    style="background:transparent; border:none; color:#00FFC8; cursor:pointer; font-size:10px; text-decoration:underline; padding:0; margin:0;">Stats</button>
+                            </div>
+                        </div>
+                        <div
+                            style="background:rgba(0,0,0,0.3); border:1px solid rgba(0,255,200,0.2); border-radius:6px; padding:10px;">
+                            <div
+                                style="display:flex; justify-content:space-between; margin-bottom: 8px; font-size:12px;">
+                                <span style="color:#aaa;">Balance:</span>
+                                <strong id="ptBalance" style="color:#00FFC8;">$1000.00</strong>
+                            </div>
+
+                            <!-- Leverage & Margin selectors -->
+                            <div id="ptParams" style="display:flex; gap:8px; margin-bottom:10px;">
+                                <div style="flex:1;">
+                                    <label
+                                        style="display:block; font-size:9px; color:#aaa; margin-bottom:3px; text-transform:uppercase;">Leverage</label>
+                                    <select id="ptLeverage"
+                                        style="width:100%; background:#050814; color:#00FFC8; border:1px solid rgba(0,255,200,0.3); border-radius:4px; padding:4px; font-size:11px; outline:none; cursor:pointer;">
+                                        <option value="1">1x</option>
+                                        <option value="5">5x</option>
+                                        <option value="10">10x</option>
+                                        <option value="20">20x</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label
+                                        style="display:block; font-size:9px; color:#aaa; margin-bottom:3px; text-transform:uppercase;">Margin</label>
+                                    <select id="ptMarginPct"
+                                        style="width:100%; background:#050814; color:#00FFC8; border:1px solid rgba(0,255,200,0.3); border-radius:4px; padding:4px; font-size:11px; outline:none; cursor:pointer;">
+                                        <option value="10">10%</option>
+                                        <option value="25">25%</option>
+                                        <option value="50">50%</option>
+                                        <option value="100" selected>100%</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- TP / SL inputs -->
+                            <div id="ptRiskParams" style="display:flex; gap:8px; margin-bottom:15px;">
+                                <div style="flex:1;">
+                                    <label
+                                        style="display:block; font-size:9px; color:#aaa; margin-bottom:3px; text-transform:uppercase;">Take
+                                        Profit (%)</label>
+                                    <input type="number" id="ptTP" value="1.25" step="0.05" min="0.1"
+                                        style="width:100%; background:#050814; color:#00FF88; border:1px solid rgba(0,255,136,0.3); border-radius:4px; padding:4px; font-size:11px; outline:none; text-align:center;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label
+                                        style="display:block; font-size:9px; color:#aaa; margin-bottom:3px; text-transform:uppercase;">Stop
+                                        Loss (%)</label>
+                                    <input type="number" id="ptSL" value="1.50" step="0.05" min="0.1"
+                                        style="width:100%; background:#050814; color:#FF006E; border:1px solid rgba(255,0,110,0.3); border-radius:4px; padding:4px; font-size:11px; outline:none; text-align:center;">
+                                </div>
+                            </div>
+
+                            <div id="ptStrategy" style="margin-bottom: 15px;">
+                                <label
+                                    style="display:block; font-size:9px; color:#aaa; margin-bottom:3px; text-transform:uppercase;">Bot
+                                    Aggressiveness</label>
+                                <select id="ptBotMode"
+                                    style="width:100%; background:#050814; color:#fff; border:1px solid rgba(255,255,255,0.2); border-radius:4px; padding:4px; font-size:11px; outline:none; cursor:pointer;"
+                                    onchange="PaperTrader.saveMode()">
+                                    <option value="sniper" selected>🎯 Sniper Phase 5 (Редко, но метко)</option>
+                                    <option value="elliott">🌊 Elliott C-Catcher (Только коррекции)</option>
+                                    <option value="degen">🚀 Degen Test Mode (Много сделок, тест механики)</option>
+                                </select>
+                            </div>
+
+                            <div id="forecastStatsUI"
+                                style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px;">
+                                <!-- Сюда рендерятся статы Ванги и Эллиотта -->
+                            </div>
+
+                            
+
+                            <div id="ptControls">
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="PaperTrader.openPos('LONG')"
+                                        style="flex:1; background:rgba(0,255,136,0.1); border:1px solid #00FF88; color:#00FF88; border-radius:6px; padding:10px; font-weight:900; font-size:14px; cursor:pointer; transition:0.2s;"
+                                        onmouseover="this.style.background='rgba(0,255,136,0.3)'"
+                                        onmouseout="this.style.background='rgba(0,255,136,0.1)'">▲ LONG</button>
+                                    <button onclick="PaperTrader.openPos('SHORT')"
+                                        style="flex:1; background:rgba(255,0,110,0.1); border:1px solid #FF006E; color:#FF006E; border-radius:6px; padding:10px; font-weight:900; font-size:14px; cursor:pointer; transition:0.2s;"
+                                        onmouseover="this.style.background='rgba(255,0,110,0.3)'"
+                                        onmouseout="this.style.background='rgba(255,0,110,0.1)'">▼ SHORT</button>
+                                </div>
+                            </div>
+
+                            <div id="ptActivePosition" style="display:none; margin-top:5px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <span id="ptPosBadge"
+                                        style="font-size:12px; padding:4px 8px; border-radius:4px; font-weight:bold; background:rgba(0,255,136,0.2); color:#00FF88; letter-spacing:1px;">LONG</span>
+                                    <span id="ptPosPnL"
+                                        style="font-size:16px; font-weight:bold; font-family:'Courier New',monospace; color:#00FF88;">+$0.00</span>
+                                </div>
+                                <div
+                                    style="display:flex; justify-content:space-between; font-size:10px; color:#aaa; text-align:left; margin-bottom:10px; font-family:'Courier New', monospace;">
+                                    <span>Entry: $<span id="ptPosEntry">---</span></span>
+                                    <span>Margin: $<span id="ptPosMargin">---</span></span>
+                                    <span>Lev: <span id="ptPosLev">---</span></span>
+                                </div>
+                                <button onclick="PaperTrader.closePos()"
+                                    style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:6px; padding:6px; font-size:12px; font-weight:bold; cursor:pointer; transition:0.2s;"
+                                    onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                                    onmouseout="this.style.background='rgba(255,255,255,0.05)'">✖ CLOSE</button>
+                            </div>
+
+                            <!-- History Panel -->
+                            <div id="ptHistoryPanel"
+                                style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <span style="font-size:10px; color:#aaa; text-transform:uppercase;">Trade
+                                        History</span>
+                                    <button onclick="PaperTrader.clearHistory()"
+                                        style="background:transparent; border:none; color:#FF006E; cursor:pointer; font-size:9px; text-decoration:underline; padding:0; margin:0;">Clear</button>
+                                </div>
+                                <div id="ptHistoryList"
+                                    style="max-height:120px; overflow-y:auto; overflow-x:hidden; font-family:'Courier New', monospace; font-size:10px; color:#ccc; display:flex; flex-direction:column; gap:4px; padding-right:2px;">
+                                    <!-- Rows populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Button to open Backtest Modal -->
+                    <div style="text-align:center; margin-top: 8px;">
+                        <button onclick="openBacktestModal()"
+                            style="background:transparent; border:1px solid #FFD700; color:#FFD700; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px; width:100%; transition: 0.2s;"
+                            onmouseover="this.style.background='rgba(255,215,0,0.1)';"
+                            onmouseout="this.style.background='transparent';">📈 Бэктест / Инструменты</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons removed -->
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- ТЕКУЩИЙ ЦИКЛ BTC 2023–СЕЙЧАС                              -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="cycleSection" style="
+        width:100%; min-height:100vh;
+        background:rgba(10,14,39,0.95);
+        border-top:2px solid #00FFC8;
+        padding:16px; box-sizing:border-box;
+        display:flex; flex-direction:column;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h2
+                style="font-size:15px; color:#00FF88; text-shadow:0 0 10px #00FF88; margin:0; letter-spacing:2px; text-transform:uppercase;">
+                &#128200; Текущий цикл BTC — с 2023 года (Дневные свечи)
+            </h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <span id="cycleStatus" style="font-size:11px; color:#aaa;">Загрузка...</span>
+                <button onclick="CycleChart.reload()"
+                    style="background:rgba(0,255,200,0.1);border:1px solid #00FFC8;color:#00FFC8;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;transition:0.2s;font-family:inherit;">&#128260;
+                    Обновить</button>
+            </div>
+        </div>
+
+        <!-- Легенда -->
+        <div
+            style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px; font-family:'Courier New',monospace; font-size:10px;">
+            <div style="display:flex;align-items:center;gap:6px;"><span
+                    style="display:inline-block;width:20px;height:2px;background:#FFD700;"></span><span
+                    style="color:#FFD700;">EMA 200</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span
+                    style="display:inline-block;width:20px;height:2px;background:#00D9FF;"></span><span
+                    style="color:#00D9FF;">EMA 50</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span
+                    style="display:inline-block;width:20px;height:2px;background:#FF006E;"></span><span
+                    style="color:#FF006E;">$66,600 — Линия 666</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span
+                    style="display:inline-block;width:20px;height:2px;background:#FFD700;"></span><span
+                    style="color:#FFD700;">$97,000 — Распределение</span></div>
+            <div
+                style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.03);padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);">
+                <span style="color:#FF6B6B;font-size:9px;">━</span>&nbsp;<span
+                    style="color:#FFA94D;font-size:9px;">━</span>&nbsp;<span
+                    style="color:#FFD700;font-size:9px;">━</span>&nbsp;<span
+                    style="color:#51CF66;font-size:9px;">━</span>&nbsp;<span
+                    style="color:#339AF0;font-size:9px;">━</span>
+                <span style="color:#aaa;margin-left:4px;">Fibo 23.6% / 38.2% / 50% / 61.8% / 78.6%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="color:#CC77FF;font-size:9px;">╌╌</span>
+                <span style="color:#CC77FF;">Расширения 127% / 161.8%</span>
+            </div>
+        </div>
+
+        <!-- Layout container for widget and canvas -->
+        <div style="display:flex; flex:1; min-height:75vh; gap:16px;">
+
+
+            <!-- Canvas wrapper -->
+            <div
+                style="position:relative;flex:1;background:#0a0d1e;border:1px solid rgba(0,255,200,0.2);border-radius:8px;overflow:hidden;">
+                <div id="cycleLoading"
+                    style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,14,39,0.9);z-index:10;color:#00FFC8;font-size:18px;border-radius:8px;text-shadow:0 0 5px #00FFC8;">
+                    ⏳ Загрузка данных цикла...</div>
+                <canvas id="cycleChartCanvas"
+                    style="width:100%!important;height:100%!important;display:block;cursor:crosshair;"></canvas>
+                <div id="cycleCrosshairH"
+                    style="display:none;position:absolute;left:0;right:0;height:1px;border-top:1px dashed rgba(255,255,255,0.35);pointer-events:none;z-index:10;">
+                </div>
+                <div id="cycleCrosshairV"
+                    style="display:none;position:absolute;top:0;bottom:0;width:1px;border-left:1px dashed rgba(255,255,255,0.35);pointer-events:none;z-index:10;">
+                </div>
+                <div id="cycleTooltip"
+                    style="display:none;position:absolute;background:rgba(10,14,39,0.95);border:1px solid #00FFC8;border-radius:6px;padding:8px 12px;font-family:'Courier New',monospace;font-size:11px;color:#fff;pointer-events:none;z-index:20;white-space:nowrap;line-height:1.7;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div id="cycleStats"
+            style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-family:'Courier New',monospace;font-size:11px;color:#aaa;">
+        </div>
+    </div>
+
+
+
+    <!-- AI Modal -->
+    <div id="aiModal" class="ai-modal-overlay" onclick="if(event.target===this) this.style.display='none'">
+        <div class="ai-modal-content">
+            <div class="ai-modal-header">
+                <div style="display:flex; gap:15px; align-items:center;">
+                    <h2>🤖 Baba Vanga AI (Полный отчет)</h2>
+                    <button onclick="AIAnalyzer.setApiKey()"
+                        style="background:transparent; border:1px solid #aaa; color:#aaa; padding:4px 10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">⚙️
+                        API</button>
+                    <button onclick="AIAnalyzer.fetchAnalysis()"
+                        style="background:transparent; border:1px solid #00FFC8; color:#00FFC8; padding:4px 10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">🔄
+                        Запустить</button>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button onclick="saveAIModal()"
+                        style="background:#00FF88; color:#000; border:none; padding:4px 10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">💾
+                        Сохранить</button>
+                    <button onclick="resetAIModal()"
+                        style="background:transparent; border:1px solid #FF5C5C; color:#FF5C5C; padding:4px 10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">🔄
+                        Сбросить</button>
+                    <button class="ai-modal-close"
+                        onclick="document.getElementById('aiModal').style.display='none'">✖</button>
+                </div>
+            </div>
+            <div class="ai-modal-body" id="aiModalText" contenteditable="true" spellcheck="false" style="outline:none;">
+                Нет данных. Нажмите «🔄 Запустить» в меню сверху.</div>
+        </div>
+    </div>
+
+    <!-- Strategy Report Modal -->
+    <div id="strategyReportModal" class="ai-modal-overlay" onclick="if(event.target===this) this.style.display='none'">
+        <div class="ai-modal-content" style="max-width: 650px; width: 90%; height: auto; max-height: 90vh;">
+            <div class="ai-modal-header">
+                <h2 style="color:#00FF88;">📊 Отчет по стратегии 666 Line</h2>
+                <button class="ai-modal-close"
+                    onclick="document.getElementById('strategyReportModal').style.display='none'">&times;</button>
+            </div>
+            <div class="ai-modal-body"
+                style="padding: 20px; font-family:'Courier New', monospace; font-size:14px; line-height:1.6; color:#ddd; white-space: normal; overflow-y: auto;">
+                <p
+                    style="margin-bottom:20px; font-size:15px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                    Стратегия <strong>666 Line</strong> — это фундаментальный макро-трекер для определения глобальных
+                    фаз рынка Биткоина, основанный на концепции накопления и распределения Smart Money.</p>
+
+                <div
+                    style="margin-bottom:15px; padding:15px; background:rgba(0,255,136,0.05); border-left:4px solid #00FF88; border-radius:4px;">
+                    <strong style="color:#00FF88; font-size:16px;">🟢 ЗОНА СКИДКИ (Цена &lt; $66.6k)</strong><br>
+                    <span style="color:#aaa;">Самая безопасная фаза для покупок. Крупные институциональные
+                        игроки активно накапливают позиции в этой зоне. Риск минимальный. Исторически это самые
+                        прибыльные зоны покупок перед началом агрессивного бычьего ралли.</span><br>
+                    <strong style="color:#fff; display:inline-block; margin-top:8px;">▶ Действие:</strong> <span
+                        style="color:#00FF88;">Активный набор LONG позиций. DCA покупки на спот.</span>
+                </div>
+
+                <div
+                    style="margin-bottom:15px; padding:15px; background:rgba(255,215,0,0.05); border-left:4px solid #FFD700; border-radius:4px;">
+                    <strong style="color:#FFD700; font-size:16px;">🟡 ГРАВИТАЦИЯ 666 ($66.6k - $97k)</strong><br>
+                    <span style="color:#aaa;">Зона равновесия цены и борьбы между покупателями и продавцами. Это
+                        нейтральная территория гравитации: цена может совершать резкие скачки в обе стороны, выбивая
+                        ликвидность.</span><br>
+                    <strong style="color:#fff; display:inline-block; margin-top:8px;">▶ Действие:</strong> <span
+                        style="color:#FFD700;">Удержание позиций (HODL). Торговля строго по тренду с жесткими
+                        стоп-лоссами.</span>
+                </div>
+
+                <div
+                    style="margin-bottom:20px; padding:15px; background:rgba(255,0,110,0.05); border-left:4px solid #FF006E; border-radius:4px;">
+                    <strong style="color:#FF006E; font-size:16px;">🔴 ЗОНА РАСПРЕДЕЛЕНИЯ (Цена &gt; $97k)</strong><br>
+                    <span style="color:#aaa;">Экстремальная жадность толпы и перегретость индикаторов. "Умные деньги"
+                        плавно разгружают свои позиции о входящих на фомо розничных трейдеров. Высокий риск
+                        разворота.</span><br>
+                    <strong style="color:#fff; display:inline-block; margin-top:8px;">▶ Действие:</strong> <span
+                        style="color:#FF006E;">Приоритет SHORT позиций. Защита капитала и частичная фиксация
+                        прибыли.</span>
+                </div>
+
+                <p style="font-size:11px; color:#666; text-align:center; margin:0;">* Алгоритм автоматически
+                    рассчитывает текущую фазу на основе цены и ликвидности.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicators Modal -->
+    <div id="indicatorsModal" class="ai-modal-overlay" onclick="if(event.target===this) this.style.display='none'">
+        <div class="ai-modal-content" style="max-width: 800px; width: 90%; height: auto; max-height: 90vh;">
+            <div class="ai-modal-header">
+                <h2>📊 Индикаторы</h2>
+                <button class="ai-modal-close"
+                    onclick="document.getElementById('indicatorsModal').style.display='none'">&times;</button>
+            </div>
+            <div class="ai-modal-body" style="padding: 20px;">
+                <div class="indicators-grid">
+                    <div class="indicator">
+                        <div class="indicator-label">RSI (14):</div>
+                        <div id="indRSI" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Тренд (20):</div>
+                        <div id="indTrend" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Объем торгов (24ч):</div>
+                        <div id="indVol" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Давление стакана (Bids/Asks):</div>
+                        <div id="indMom" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Global Long/Short Ratio:</div>
+                        <div id="indLS" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Funding Rate:</div>
+                        <div id="indFunding" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Market Regime (ADX):</div>
+                        <div id="indADX" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">StochRSI (14,14,3,3):</div>
+                        <div id="indStochRSI" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Fear & Greed Index:</div>
+                        <div id="indFG" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Открытый Интерес (OI):</div>
+                        <div id="indOI" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Mempool Комиссии (sat/vB):</div>
+                        <div id="indMemFee" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Хэшрейт (3д изм.):</div>
+                        <div id="indHashrate" class="indicator-value">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">CVD (Cum. Vol. Delta):</div>
+                        <div id="vfCVD" class="indicator-value" style="font-weight:bold;">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Delta (Taker):</div>
+                        <div id="vfDelta" class="indicator-value" style="font-weight:bold;">---</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">Taker Buy/Sell:</div>
+                        <div id="vfBuySell" class="indicator-value" style="font-size:14px; font-weight:bold;">--- / ---
+                        </div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">1h Long Liq (Ликвидации):</div>
+                        <div id="vfLiqLong" class="indicator-value" style="color:#FF006E; font-weight:bold;">$0</div>
+                    </div>
+                    <div class="indicator">
+                        <div class="indicator-label">1h Short Liq (Ликвидации):</div>
+                        <div id="vfLiqShort" class="indicator-value" style="color:#00FF88; font-weight:bold;">$0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Backtest Modal -->
+    <div id="btModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10000; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+        <div
+            style="background:rgba(10, 14, 39, 0.95); border:1px solid #00FFC8; border-radius:10px; padding:20px; width:90%; max-width:1200px; max-height:85vh; display:flex; flex-direction:column; box-shadow: 0 0 30px rgba(0,255,200,0.1);">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(0,255,200,0.3); padding-bottom:10px;">
+                <h2 style="color:#00FF88; font-size:16px; margin:0; text-transform:uppercase; letter-spacing:1px;">📈
+                    Backtest & Analytics</h2>
+                <button onclick="document.getElementById('btModal').style.display='none'"
+                    style="background:none; border:none; color:#FF006E; font-size:24px; cursor:pointer; line-height:1;">&times;</button>
+            </div>
+
+            <div style="display: flex; gap: 20px; flex: 1; overflow: hidden; height: calc(100% - 50px);">
+                <!-- Left side: Backtest -->
+                <div style="flex: 2; display: flex; flex-direction: column; overflow: hidden;">
+                    <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <select id="btTf"
+                    style="background:#050814; color:#00FFC8; border:1px solid #00FFC8; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; outline:none;">
+                    <option value="15m">15m TF</option>
+                    <option value="1h">1h TF</option>
+                    <option value="4h" selected>4h TF</option>
+                    <option value="1d">1d TF</option>
+                </select>
+                <select id="btLimit"
+                    style="background:#050814; color:#00FFC8; border:1px solid #00FFC8; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; outline:none;">
+                    <option value="500">500 Candles</option>
+                    <option value="1000" selected>1000 Candles</option>
+                    <option value="5000">5000 Candles</option>
+                    <option value="10000">10000 Candles</option>
+                </select>
+
+                <button id="runBtBtn"
+                    onclick="BacktesterUI.run(document.getElementById('btTf').value, document.getElementById('btLimit').value)"
+                    style="background:rgba(0,255,136,0.1); border:1px solid #00FF88; color:#00FF88; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; transition:0.2s;">▶
+                    Run Backtest</button>
+                <button id="btBtnCSV" onclick="BacktesterUI.exportCSV()"
+                    style="display:none; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; transition:0.2s;">📥
+                    Export CSV</button>
+                <button id="btBtnJSON" onclick="BacktesterUI.exportJSON()"
+                    style="display:none; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; transition:0.2s;">📥
+                    Export JSON</button>
+                <button id="btBtnAI" onclick="BacktesterUI.copyForAI()"
+                    style="display:none; background:rgba(187,134,252,0.1); border:1px solid #BB86FC; color:#BB86FC; padding:8px 16px; border-radius:6px; cursor:pointer; transition:0.2s; font-weight:bold;">🤖
+                    Copy for AI</button>
+            </div>
+
+            <div id="btLog"
+                style="flex:1; overflow-y:auto; background:#050814; border:1px solid rgba(0,255,200,0.1); border-radius:6px; padding:15px; font-family:'Courier New', monospace; font-size:12px; color:#d1d4dc; white-space:pre-wrap; line-height:1.5;">
+                ⏳ Select timeframe and click ▶ Run Backtest to start...</div>
+                </div>
+
+                <!-- Right side: Moved Tools -->
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding-right: 10px; border-left: 1px solid rgba(0,255,200,0.2); padding-left: 15px;">
+                    <!-- Gauss Auto -->
+                    <div
+                        style="margin-bottom: 10px; padding: 8px; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                            <span style="color:#aaa;">Long Profit Zone:</span>
+                            <span id="gaussLongProf" style="color:#00FF88; font-weight:bold;">---%</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                            <span style="color:#aaa;">Short Profit Zone:</span>
+                            <span id="gaussShortProf" style="color:#FF006E; font-weight:bold;">---%</span>
+                        </div>
+                        <div id="gaussAutoVolatility" style="font-size:10px; color:#666; text-align:center;"></div>
+                    </div>
+
+                    <!-- AI Assessment — на месте блока Вероятность -->
+                    <div style="margin-bottom: 8px;">
+                        <div style="position:relative; display:flex; justify-content:center; align-items:center;">
+                            <h2 id="aiAssessmentTitle" style="margin:0;">🤖 Baba Vanga AI</h2>
+                            <span id="aiCountdown"
+                                style="font-size:10px; color:#aaa; font-weight:normal; position:absolute; right:0; top:4px;"></span>
+                        </div>
+                        <div style="text-align:center;">
+                            <button onclick="AIAnalyzer.fetchAnalysis()" title="Запустить принудительно"
+                                style="background:transparent; border:1px solid rgba(0,255,200,0.4); color:#00FFC8; padding:4px 12px; border-radius:4px; cursor:pointer; font-size:11px; margin-top:8px; transition:0.2s;"
+                                onmouseover="this.style.background='rgba(0,255,200,0.1)'; this.style.borderColor='#00FFC8';"
+                                onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(0,255,200,0.4)';">
+                                🔄 Запустить сейчас
+                            </button>
+                        </div>
+                        <div id="aiAssessmentBody"></div>
+                        <div style="text-align:center; margin-top: 10px;">
+                            <button onclick="openAIModal()"
+                                style="background:transparent; border:1px solid #00FFC8; color:#00FFC8; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px; width:100%; transition: 0.2s;"
+                                onmouseover="this.style.background='#00FFC8'; this.style.color='#000';"
+                                onmouseout="this.style.background='transparent'; this.style.color='#00FFC8';">Открыть
+                                панель ИИ</button>
+                        </div>
+                    </div>
+
+                    <!-- Button to open Indicators Modal -->
+                    <div style="text-align:center; margin-top: 10px;">
+                        <button onclick="document.getElementById('indicatorsModal').style.display='flex'"
+                            style="background:transparent; border:1px solid #00FFC8; color:#00FFC8; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px; width:100%; transition: 0.2s;"
+                            onmouseover="this.style.background='#00FFC8'; this.style.color='#000';"
+                            onmouseout="this.style.background='transparent'; this.style.color='#00FFC8';">📊 Открыть
+                            индикаторы</button>
+                    </div>
+
+                    <!-- Squeeze Screener -->
+                    <div class="squeeze-chip">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <a href="squeeze_screener.html" target="_blank" title="Открыть полный интерфейс">
+                                <h3>⚡ Squeeze Screener <span style="font-size:10px;">↗</span></h3>
+                            </a>
+                            <button onclick="SqueezeScreener.runScan()"
+                                style="background:transparent; border:1px solid #00FFC8; color:#00FFC8; padding:2px 6px; border-radius:4px; cursor:pointer; font-size:10px; opacity:0.8;">🔄
+                                Скан</button>
+                        </div>
+                        <div id="squeezeResults">
+                            <div class="squeeze-empty">ожидание ручного запуска...</div>
+                        </div>
+                        <div id="squeezeStatus" class="squeeze-status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMART MONEY MACRO TRACKER -->
+
+
+    <script type='module' src='./main.js'></script>
+</body>
+
+</html>

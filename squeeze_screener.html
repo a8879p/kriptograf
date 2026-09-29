@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Squeeze Screener</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0d0d0f;
+    --bg2: #141416;
+    --bg3: #1a1a1e;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e8ec;
+    --muted: #6b6b78;
+    --up: #00d4a0;
+    --up-bg: rgba(0,212,160,0.08);
+    --up-border: rgba(0,212,160,0.2);
+    --down: #ff5c5c;
+    --down-bg: rgba(255,92,92,0.08);
+    --down-border: rgba(255,92,92,0.2);
+    --accent: #7c6aff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    transition: background .3s;
+  }
+  .dot.live { background: var(--up); animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .status-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .main { padding: 24px 32px; max-width: 1100px; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .control-group label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  select, input[type=number] {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border .2s;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  input[type=number] { width: 80px; }
+
+  .btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--bg2);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn.primary:hover { opacity: .85; color: #fff; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 6px;
+  }
+  .stat-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+  }
+  .stat-val.up { color: var(--up); }
+  .stat-val.down { color: var(--down); }
+  .stat-val.neu { color: var(--text); }
+
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width .15s linear;
+    border-radius: 2px;
+  }
+
+  .table-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    font-weight: 400;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); }
+
+  td {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  .rank { color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+
+  .symbol {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .symbol-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .change {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+  }
+  .change.up { color: var(--up); }
+  .change.down { color: var(--down); }
+
+  .z-wrap { display: flex; align-items: center; gap: 10px; }
+  .z-val { font-family: 'IBM Plex Mono', monospace; font-weight: 500; min-width: 52px; font-size: 13px; }
+  .z-bar-bg { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .z-bar { height: 100%; border-radius: 2px; }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .badge.up { background: var(--up-bg); color: var(--up); border: 1px solid var(--up-border); }
+  .badge.down { background: var(--down-bg); color: var(--down); border: 1px solid var(--down-border); }
+
+  .vol { color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+
+  .price { font-family: 'IBM Plex Mono', monospace; }
+
+  .empty {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--muted);
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .error-msg {
+    background: var(--down-bg);
+    border: 1px solid var(--down-border);
+    color: var(--down);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    display: none;
+  }
+
+  .info-msg {
+    background: rgba(124,106,255,0.08);
+    border: 1px solid rgba(124,106,255,0.2);
+    color: #a89fff;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    margin-bottom: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.6;
+  }
+
+  .auto-badge {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(124,106,255,0.12);
+    color: #a89fff;
+    border: 1px solid rgba(124,106,255,0.2);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SQUEEZE<span>_</span>SCREENER</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="dot" id="dot"></div>
+    <span class="status-text" id="status-text">готов</span>
+  </div>
+  <div class="header-right">
+    <span class="auto-badge" id="auto-badge" style="display:none">auto-refresh</span>
+    <span class="status-text" id="last-update"></span>
+  </div>
+</header>
+
+<div class="main">
+
+  <div class="info-msg">
+    Данные берутся с <b>Binance Public API</b> (без ключей). Алгоритм: считает Z-score последней свечи
+    относительно предыдущих N свечей. Если |Z| ≥ порог — сквиз. Порядка 50–100 монет за скан.
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Таймфрейм</label>
+      <select id="tf">
+        <option value="1m">1m</option>
+        <option value="3m">3m</option>
+        <option value="5m" selected>5m</option>
+        <option value="15m">15m</option>
+        <option value="1h">1h</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Свечей для расчёта</label>
+      <input type="number" id="lookback" value="30" min="10" max="100">
+    </div>
+    <div class="control-group">
+      <label>Порог (σ)</label>
+      <input type="number" id="threshold" value="2.5" min="1" max="10" step="0.5">
+    </div>
+    <div class="control-group">
+      <label>Топ монет</label>
+      <input type="number" id="topN" value="1000" min="1" max="2000">
+    </div>
+    <div class="control-group">
+      <label>Мин. объём $</label>
+      <select id="minVol">
+        <option value="0" selected>любой</option>
+        <option value="500000">500K</option>
+        <option value="1000000">1M</option>
+        <option value="5000000">5M</option>
+        <option value="10000000">10M</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Направление</label>
+      <select id="direction">
+        <option value="both">оба</option>
+        <option value="up">только вверх ↑</option>
+        <option value="down">только вниз ↓</option>
+      </select>
+    </div>
+    <button class="btn primary" id="scan-btn" onclick="startScan()">▶ Сканировать</button>
+    <button class="btn" id="auto-btn" onclick="toggleAuto()">⟳ Авто</button>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Монет просканировано</div><div class="stat-val neu" id="s-total">—</div></div>
+    <div class="stat"><div class="stat-label">Сквиз ↑ вверх</div><div class="stat-val up" id="s-up">—</div></div>
+    <div class="stat"><div class="stat-label">Сквиз ↓ вниз</div><div class="stat-val down" id="s-down">—</div></div>
+    <div class="stat"><div class="stat-label">Сила макс.</div><div class="stat-val neu" id="s-max">—</div></div>
+    <div class="stat"><div class="stat-label">Время скана</div><div class="stat-val neu" id="s-time">—</div></div>
+  </div>
+
+  <div class="error-msg" id="error-msg"></div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+const BASE = 'https://api.binance.com/api/v3';
+let autoTimer = null;
+let scanning = false;
+
+const POPULAR_COINS = [
+  'BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','ADAUSDT','DOGEUSDT',
+  'AVAXUSDT','DOTUSDT','LINKUSDT','MATICUSDT','UNIUSDT','ATOMUSDT','LTCUSDT',
+  'NEARUSDT','APTUSDT','ARBUSDT','OPUSDT','SUIUSDT','INJUSDT','TIAUSDT',
+  'JUPUSDT','WIFUSDT','BONKUSDT','PEPEUSDT','TONUSDT','RENDERUSDT','FETUSDT',
+  'WLDUSDT','STXUSDT','IMXUSDT','GRTUSDT','SANDUSDT','MANAUSDT','AXSUSDT',
+  'APEUSDT','MKRUSDT','AAVEUSDT','COMPUSDT','SNXUSDT','CRVUSDT','LDOUSDT',
+  'RPLUSDT','SEIUSDT','BLURUSDT','PENDLEUSDT','ARKMUSDT','PYTHUSDT','ALTUSDT',
+  'ORDIUSDT','SATSUSDT','RUNEUSDT','CFXUSDT','AGIXUSDT','OCEANUSDT','NMRUSDT',
+  'IOTAUSDT','FTMUSDT','ONEUSDT','ZECUSDT','DASHUSDT','XMRUSDT','ETCUSDT',
+  'FILUSDT','TRXUSDT','XLMUSDT','VETUSDT','THETAUSDT','ALGOUSDT','ICPUSDT',
+  'FLOWUSDT','EGLDUSDT','XTZUSDT','KSMUSDT','KAVAUSDT','BANDUSDT','STORJUSDT',
+  'RLCUSDT','CTKUSDT','LPTUSDT','NUUSDT','COTIUSDT','MBOXUSDT','FORTHUSDT',
+  'XVGUSDT','CELOUSDT','ANKRUSDT','BATUSDT','ENJUSDT','CHZUSDT','HOTUSDT',
+  'ZILUSDT','SXPUSDT','ZENUSDT','DGBUSDT','SCUSDT','WAVESUSDT','ARUSDT'
+];
+
+async function fetchKlines(symbol, interval, limit) {
+  const url = `${BASE}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+function calcZScore(closes) {
+  const changes = [];
+  for (let i = 1; i < closes.length; i++) {
+    changes.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
+  }
+  const n = changes.length - 1;
+  const hist = changes.slice(0, n);
+  const last = changes[n];
+  const mean = hist.reduce((a,b) => a+b, 0) / hist.length;
+  const std = Math.sqrt(hist.reduce((a,b) => a + (b-mean)**2, 0) / hist.length);
+  if (std < 0.0001) return { z: 0, change: last };
+  return { z: (last - mean) / std, change: last };
+}
+
+function fmtVol(v) {
+  if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+  return v.toString();
+}
+
+function setProgress(pct) {
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function startScan() {
+  if (scanning) return;
+  scanning = true;
+  showError('');
+
+  const tf = document.getElementById('tf').value;
+  const lookback = parseInt(document.getElementById('lookback').value) || 30;
+  const threshold = parseFloat(document.getElementById('threshold').value) || 2.5;
+  const topN = parseInt(document.getElementById('topN').value) || 5;
+  const minVol = parseFloat(document.getElementById('minVol').value) || 0;
+  const direction = document.getElementById('direction').value;
+
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('dot').className = 'dot live';
+  document.getElementById('status-text').textContent = 'сканирование...';
+  document.getElementById('result').innerHTML = '';
+
+  const t0 = Date.now();
+  const results = [];
+  let scanned = 0;
+
+  const coins = POPULAR_COINS;
+  const BATCH = 5;
+
+  try {
+    for (let i = 0; i < coins.length; i += BATCH) {
+      const batch = coins.slice(i, i + BATCH);
+      await Promise.all(batch.map(async sym => {
+        try {
+          const klines = await fetchKlines(sym, tf, lookback + 2);
+          if (klines.length < 10) return;
+
+          const closes = klines.map(k => parseFloat(k[4]));
+          const quoteVol = klines.slice(-1)[0][7];
+          const vol = parseFloat(quoteVol);
+
+          if (vol < minVol) return;
+
+          const { z, change } = calcZScore(closes);
+          const absZ = Math.abs(z);
+
+          if (absZ >= threshold) {
+            const dir = z > 0 ? 'up' : 'down';
+            if (direction !== 'both' && dir !== direction) return;
+            results.push({
+              sym, z: parseFloat(z.toFixed(2)),
+              change: parseFloat(change.toFixed(3)),
+              vol, dir,
+              price: closes[closes.length - 1]
+            });
+          }
+          scanned++;
+        } catch(e) {}
+      }));
+
+      setProgress(Math.round((i + BATCH) / coins.length * 100));
+      document.getElementById('s-total').textContent = scanned;
+    }
+
+    results.sort((a,b) => Math.abs(b.z) - Math.abs(a.z));
+    const top = results.slice(0, topN);
+
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    const ups = top.filter(r => r.dir === 'up').length;
+    const downs = top.filter(r => r.dir === 'down').length;
+    const maxZ = top.length ? Math.abs(top[0].z).toFixed(1) + 'σ' : '—';
+
+    document.getElementById('s-up').textContent = ups;
+    document.getElementById('s-down').textContent = downs;
+    document.getElementById('s-max').textContent = maxZ;
+    document.getElementById('s-time').textContent = elapsed + 's';
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ru');
+
+    renderTable(top);
+
+  } catch(e) {
+    showError('Ошибка: ' + e.message + '. Проверьте интернет или попробуйте позже.');
+  }
+
+  setProgress(100);
+  setTimeout(() => setProgress(0), 600);
+  document.getElementById('scan-btn').disabled = false;
+  document.getElementById('dot').className = 'dot';
+  document.getElementById('status-text').textContent = 'готов';
+  scanning = false;
+}
+
+function renderTable(rows) {
+  const el = document.getElementById('result');
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty">// сквизов не найдено — снизьте порог σ или уберите фильтр объёма</div>';
+    return;
+  }
+
+  const maxAbsZ = Math.abs(rows[0].z) || 1;
+
+  let html = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th style="width:140px">монета</th>
+      <th style="width:110px">изменение</th>
+      <th>z-score / сила</th>
+      <th style="width:100px">цена</th>
+      <th style="width:100px">объём 24h</th>
+      <th style="width:110px">сигнал</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach((r, i) => {
+    const pct = (Math.abs(r.z) / maxAbsZ * 100).toFixed(0);
+    const barColor = r.dir === 'up' ? '#00d4a0' : '#ff5c5c';
+    const sign = r.z > 0 ? '+' : '';
+    const changeSign = r.change > 0 ? '+' : '';
+    const priceStr = r.price < 0.01 ? r.price.toFixed(6) : r.price < 1 ? r.price.toFixed(4) : r.price.toFixed(2);
+
+    html += `<tr>
+      <td class="rank">${i+1}</td>
+      <td>
+        <div class="symbol">${r.sym.replace('USDT','')}</div>
+        <div class="symbol-sub">USDT</div>
+      </td>
+      <td><span class="change ${r.dir}">${changeSign}${r.change.toFixed(3)}%</span></td>
+      <td>
+        <div class="z-wrap">
+          <span class="z-val" style="color:${barColor}">${sign}${r.z}σ</span>
+          <div class="z-bar-bg"><div class="z-bar" style="width:${pct}%;background:${barColor}"></div></div>
+        </div>
+      </td>
+      <td class="price">$${priceStr}</td>
+      <td class="vol">$${fmtVol(r.vol)}</td>
+      <td><span class="badge ${r.dir}">${r.dir === 'up' ? '↑ лонг' : '↓ шорт'}</span></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+function toggleAuto() {
+  const btn = document.getElementById('auto-btn');
+  const badge = document.getElementById('auto-badge');
+  if (autoTimer) {
+    clearInterval(autoTimer);
+    autoTimer = null;
+    btn.textContent = '⟳ Авто';
+    badge.style.display = 'none';
+  } else {
+    startScan();
+    const tf = document.getElementById('tf').value;
+    const ms = tf === '1m' ? 60000 : tf === '3m' ? 180000 : tf === '5m' ? 300000 : tf === '15m' ? 900000 : 3600000;
+    autoTimer = setInterval(startScan, ms);
+    btn.textContent = '◼ Стоп';
+    badge.style.display = 'inline-block';
+  }
+}
+
+// Автозапуск сканера при открытии страницы
+window.onload = () => {
+    toggleAuto();
+};
+</script>
+</body>
+</html>
