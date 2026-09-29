@@ -254,22 +254,24 @@ export function processData() {
             const levels = appData.fibData[currentTF].levels;
             
             // Найти ближайший уровень Фибоначчи
+            // NB: fibData.levels — это объект {ratio: price}, а не массив
             let closestDist = Infinity;
-            let closestLevel = null;
-            levels.forEach(l => {
-                const dist = Math.abs(currentPrice - l.price);
+            let closestPrice = null;
+            Object.values(levels).forEach(p => {
+                if (p == null || !isFinite(p)) return;
+                const dist = Math.abs(currentPrice - p);
                 if (dist < closestDist) {
                     closestDist = dist;
-                    closestLevel = l;
+                    closestPrice = p;
                 }
             });
 
-            if (closestLevel) {
+            if (closestPrice !== null) {
                 // Если цена ближе чем 0.8% к уровню Фибоначчи
                 const distancePct = closestDist / currentPrice;
                 if (distancePct < 0.008) {
                     // Отскок от поддержки (цена чуть выше уровня)
-                    if (currentPrice >= closestLevel.price) {
+                    if (currentPrice >= closestPrice) {
                         score += 0.30 * weightPct; // Буст к лонгу
                     } else {
                         // Отскок от сопротивления (цена чуть ниже уровня)

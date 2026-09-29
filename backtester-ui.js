@@ -100,7 +100,17 @@ export class BacktesterUI {
                     reject(new Error(error));
                 }
             };
+            // FIX: если worker упадёт без сообщения (script error / OOM),
+            // разблокируем UI и реджектим промис, иначе кнопка зависнет навсегда
+            const onWorkerError = (e) => {
+                worker.removeEventListener('message', onMessage);
+                worker.removeEventListener('error', onWorkerError);
+                log(`❌ Worker crashed: ${e.message || 'unknown error'}`);
+                if (runBtn) runBtn.disabled = false;
+                reject(new Error(e.message || 'Worker crashed'));
+            };
             worker.addEventListener('message', onMessage);
+            worker.addEventListener('error', onWorkerError);
             worker.postMessage({
                 cmd: 'run',
                 tf,

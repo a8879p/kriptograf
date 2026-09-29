@@ -3,7 +3,7 @@ const CACHE_NAME = 'criptograf-v3-cache';
 // Какие локальные файлы кэшировать для мгновенной загрузки (App Shell)
 const STATIC_ASSETS = [
     '/',
-    '/666BTC2graf.html',
+    '/666BTC2GRAF.html',
     '/styles.css',
     '/main.js',
     '/state.js',

@@ -1,0 +1,15 @@
+nohup: ignoring input
+
+  VITE v5.4.21  ready in 285 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://21.0.5.11:5173/
+8:44:44 AM [vite] page reload dataPipeline.js
+8:45:04 AM [vite] page reload charts.js
+8:45:12 AM [vite] page reload charts.js
+8:45:19 AM [vite] page reload charts.js
+8:45:24 AM [vite] page reload charts.js
+8:45:28 AM [vite] page reload charts.js
+8:45:52 AM [vite] page reload backtester-ui.js
+8:46:06 AM [vite] page reload trading.js
+8:46:17 AM [vite] page reload trading.js

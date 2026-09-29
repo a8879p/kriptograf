@@ -571,8 +571,8 @@ ${chartContext}`;
                     else if (currentTF === '4h') { stratTP = 3.0; stratSL = 1.5; stratTrail = 0.75; }
                     else if (currentTF === '1d') { stratTP = 10.0; stratSL = 5.0; stratTrail = 2.5; }
 
-                    const tpLimit = parseFloat(document.getElementById('ptTP')?.value) || stratTP;
-                    const slLimit = parseFloat(document.getElementById('ptSL')?.value) || stratSL;
+                    const tpLimit = p.tpLimit ?? (parseFloat(document.getElementById('ptTP')?.value) || stratTP);
+                    const slLimit = p.slLimit ?? (parseFloat(document.getElementById('ptSL')?.value) || stratSL);
                     
                     // Dynamic Stop Level Tracking
                     if (p.dynamicStopLevel === undefined) p.dynamicStopLevel = -slLimit;
@@ -620,7 +620,11 @@ ${chartContext}`;
                 if (margin <= 0) return triggerAlert('Balance is zero!', 'error');
 
                 this.state.pos = {
-                    dir, entry: this.currentPrice, margin: margin, lev: lev, time: Date.now(), botMode
+                    dir, entry: this.currentPrice, margin: margin, lev: lev, time: Date.now(), botMode,
+                    // FIX: фиксируем SL/TP на момент открытия — их изменение в UI
+                    // после открытия позиции не должно тихо двигать стоп активной сделки
+                    slLimit: parseFloat(document.getElementById('ptSL')?.value) || 1.5,
+                    tpLimit: parseFloat(document.getElementById('ptTP')?.value) || 1.25,
                 };
                 this.save();
             }

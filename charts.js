@@ -586,11 +586,13 @@ export class CandleChart {
         this._onMouseLeave = this._handleMouseLeave.bind(this);
         this._onMouseDown = this._handleMouseDown.bind(this);
         this._onMouseUp = this._handleMouseUp.bind(this);
+        this._onClick = this._handleClick.bind(this);
 
         canvas.addEventListener('mousemove', this._onMouseMove);
         canvas.addEventListener('mouseleave', this._onMouseLeave);
         canvas.addEventListener('mousedown', this._onMouseDown);
         canvas.addEventListener('mouseup', this._onMouseUp);
+        canvas.addEventListener('click', this._onClick);
     }
 
     update(candles) {
@@ -626,10 +628,15 @@ export class CandleChart {
         this.canvas.removeEventListener('mouseleave', this._onMouseLeave);
         this.canvas.removeEventListener('mousedown', this._onMouseDown);
         this.canvas.removeEventListener('mouseup', this._onMouseUp);
+        this.canvas.removeEventListener('click', this._onClick);
     }
 
     _handleClick(e) {
         if (!this._chartParams || !this.data.length) return;
+        // Не открывать торговое меню, если это был drag (перетаскивание графика)
+        const rect0 = this.canvas.getBoundingClientRect();
+        const cx = e.clientX - rect0.left, cy = e.clientY - rect0.top;
+        if (this.dragStartX !== undefined && Math.hypot(cx - this.dragStartX, cy - (this.dragStartY ?? cy)) > 5) return;
         const rect = this.canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
@@ -1355,6 +1362,8 @@ export class CandleChart {
         if (!this._chartParams || !this.data.length) return;
         const rect = this.canvas.getBoundingClientRect();
         this.dragStartX = e.clientX - rect.left;
+        this.dragStartY = e.clientY - rect.top;
+        this._dragMoved = false;
         this.dragStartOffset = this.scrollOffset;
         this.isDragging = true;
         this.canvas.style.cursor = 'grabbing';
@@ -1364,6 +1373,7 @@ export class CandleChart {
         this.isDragging = false;
         this.canvas.style.cursor = 'crosshair';
     }
+
     _hideCrosshair() {
         const ch = document.getElementById('crosshairH');
         const cv = document.getElementById('crosshairV');
